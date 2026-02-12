@@ -5,6 +5,11 @@ Contains DataPipeline class - a data pipeline for quant finance analysis
 """
 
 import sqlite3
+import yfinance as yf
+import pandas as pd
+import datetime
+import logging
+from typing import Optional
 
 
 class DataPipeline:
@@ -40,7 +45,7 @@ class DataPipeline:
                 date DATE NOT NULL,
                 open REAL,
                 high REAL,
-                low, REAL,
+                low REAL,
                 close REAL,
                 volume INTEGER,
                 adjusted_close REAL,
@@ -62,10 +67,118 @@ class DataPipeline:
         """)
 
         self.connection.commit()
-        print(f"Database successfully initialised at {self.db_path}")
+        logging.info(f"Database successfully initialised at {self.db_path}")
 
     def close_connection(self):
         """Close the connection to the database"""
         if self.connection:
             self.connection.close()
-            print("Database connection closed.")
+            logging.info("Database connection closed.")
+
+    def download_data(self, ticker: str, start: datetime.date,
+                      end: datetime.date) -> Optional[pd.DataFrame]:
+        """
+        Downloads the data for a given date range and ticker
+
+        Parameters
+        ----------
+
+        ticker : str 
+            Ticker to download data for
+        start : datetime.date
+            Start date to download data for (inclusive)
+        end : datetime.date 
+            End date (exclusive) to download data for
+
+        Returns
+        -------
+        Optional[pd.DataFrame]
+            Dataframe of OHLCV data or None if download fails
+        """
+        # Validate start and end dates
+        if end <= start:
+            raise ValueError("End date must be greater than start date")
+
+        try:
+            tk = yf.Ticker(ticker)
+            df = tk.history(start=start, end=end, auto_adjust=False)
+        except ValueError:
+            logging.error(f"Invalid ticker symbol {ticker} passed to function")
+            return None
+        except Exception:
+            logging.error("Error in getting ticker history from yfinance")
+            return None
+
+        if df.empty == True:
+            return None
+        else:
+            return df
+
+    def store_price_data(self, ticker: str, dataframe: pd.DataFrame,
+                         asset_class: str):
+        """
+        Stores the downloaded price data in the price_data SQL table
+
+        Parameters
+        ----------
+        ticker : str
+            The stock ticker we are adding for
+        dataframe : pd.DataFrame
+            DataFrame containing the data being written
+        asset_class : str
+            Asset class of the data
+        """
+        # Add rows where needed
+        df = dataframe.copy()
+        df['asset_class'] = asset_class
+        df['ticker'] = ticker
+        df['date'] = dataframe.index.date
+
+        ordered_df = df[['ticker',
+                         'date',
+                         'Open',
+                         'High',
+                         'Low',
+                         'Close',
+                         'Volume',
+                         'Adj Close',
+                         'asset_class']]
+        formatted_data = ordered_df.to_records(index=False)
+
+        cursor = self.connection.cursor()
+
+        cursor.executemany("""
+            INSERT OR REPLACE INTO price_data (ticker, date, open, high, low, close, volume, adjusted_close, asset_class)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, formatted_data)
+        self.connection.commit()
+
+    def calculate_and_store_returns(self, ticker: str):
+        """
+        Queries the price_data table for a given ticker, computes the 1d/5d/21d
+        returns and updates returns_table accordingly
+
+        Parameters
+        ----------
+        ticker : str
+            Ticker
+        """
+        pass
+
+    def build_database(self, start: datetime.date, end: datetime.date):
+        """
+        Populates SQL database containing price_table and returns_table
+
+        Parameters
+        ----------
+        start : datetime.date
+            Start date to get data for (inclusive)
+        end: datetime.date
+            End date to get data for (exclusive)
+        """
+        for asset_class in self.assets.keys():
+            for ticker in self.assets[asset_class]:
+                df = self.download_data(ticker, start, end)
+                if df is not None:
+                    self.store_price_data(ticker, df, asset_class)
+                    self.calculate_and_store_returns(ticker)

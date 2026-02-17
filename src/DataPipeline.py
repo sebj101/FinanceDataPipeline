@@ -27,10 +27,10 @@ class DataPipeline:
 
         self.assets = {
             'equities': ['AAPL', 'MSFT', 'GOOGL'],
-            'bonds': ['TIP', 'IGLT', 'SDEU', 'JGB1X'],
+            'bonds': ['TIP', 'IGLT.L', 'SDEU.L', 'JGBZX'],
             'commodities': ['GLD', 'SLV', 'USO'],
             'currencies': ['UUP', 'FXE'],
-            'volatility': ['VIX']
+            'volatility': ['^VIX']
         }
 
     def _setup_database(self):

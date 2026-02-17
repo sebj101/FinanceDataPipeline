@@ -27,9 +27,11 @@ class DataPipeline:
 
         self.assets = {
             'equities': ['AAPL', 'MSFT', 'GOOGL'],
-            'bonds': ['TIP', 'IGLT.L', 'SDEU.L', 'JGBZX'],
-            'commodities': ['GLD', 'SLV', 'USO'],
-            'currencies': ['UUP', 'FXE'],
+            'equity ETFs': ['SPY', 'QQQ', 'IWM', 'VTI'],
+            'bonds': ['TLT', 'IEF', 'TIP', 'SHY', 'HYG', 'LQD',
+                      'IGLT.L', 'SDEU.L', 'JGBZX'],
+            'commodities': ['GLD', 'SLV', 'USO', 'DBA', 'PDBC'],
+            'currencies': ['UUP', 'FXE', 'FXY', 'FXA'],
             'volatility': ['^VIX']
         }
 

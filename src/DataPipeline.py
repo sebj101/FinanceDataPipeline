@@ -11,6 +11,8 @@ import datetime
 import logging
 from typing import Optional
 
+logger = logging.getLogger(__name__)
+
 
 class DataPipeline:
     """
@@ -67,13 +69,13 @@ class DataPipeline:
         """)
 
         self.connection.commit()
-        logging.info(f"Database successfully initialised at {self.db_path}")
+        logger.info(f"Database successfully initialised at {self.db_path}")
 
     def close_connection(self):
         """Close the connection to the database"""
         if self.connection:
             self.connection.close()
-            logging.info("Database connection closed.")
+            logger.info("Database connection closed.")
 
     def download_data(self, ticker: str, start: datetime.date,
                       end: datetime.date) -> Optional[pd.DataFrame]:
@@ -103,10 +105,10 @@ class DataPipeline:
             tk = yf.Ticker(ticker)
             df = tk.history(start=start, end=end, auto_adjust=False)
         except ValueError:
-            logging.error(f"Invalid ticker symbol {ticker} passed to function")
+            logger.error(f"Invalid ticker symbol {ticker} passed to function")
             return None
         except Exception:
-            logging.error("Error in getting ticker history from yfinance")
+            logger.error("Error in getting ticker history from yfinance")
             return None
 
         if df.empty == True:

@@ -153,17 +153,46 @@ class DataPipeline:
         """, formatted_data)
         self.connection.commit()
 
-    def calculate_and_store_returns(self, ticker: str):
+    def calculate_and_store_returns(self, ticker: str, dataframe: pd.DataFrame,
+                                    asset_class: str):
         """
-        Queries the price_data table for a given ticker, computes the 1d/5d/21d
-        returns and updates returns_table accordingly
+        Using the DataFrame for a given ticker, computes the 1d/5d/21d returns 
+        and updates returns_table accordingly
 
         Parameters
         ----------
         ticker : str
             Ticker
+        dataframe : pd.DataFrame
+            Dataframe containing the historical stock data
+        asset_class : str
+            Asset class of the data
         """
-        pass
+        df = dataframe.copy()
+        df['asset_class'] = asset_class
+        df['ticker'] = ticker
+        df['date'] = dataframe.index.date
+
+        # This will create NaNs when there is not enough data
+        df['return_1d'] = dataframe['Adj Close'].pct_change(periods=1)
+        df['return_5d'] = dataframe['Adj Close'].pct_change(periods=5)
+        df['return_21d'] = dataframe['Adj Close'].pct_change(periods=21)
+
+        ordered_df = df[['ticker',
+                         'date',
+                         'return_1d',
+                         'return_5d',
+                         'return_21d',
+                         'asset_class']]
+        formatted_data = ordered_df.to_records(index=False)
+
+        cursor = self.connection.cursor()
+
+        cursor.executemany("""
+            INSERT OR REPLACE INTO returns_data (ticker, date, return_1d, return_5d, return_21d, asset_class)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, formatted_data)
+        self.connection.commit()
 
     def build_database(self, start: datetime.date, end: datetime.date):
         """
@@ -181,4 +210,4 @@ class DataPipeline:
                 df = self.download_data(ticker, start, end)
                 if df is not None:
                     self.store_price_data(ticker, df, asset_class)
-                    self.calculate_and_store_returns(ticker)
+                    self.calculate_and_store_returns(ticker, df, asset_class)

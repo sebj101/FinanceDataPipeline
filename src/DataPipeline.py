@@ -106,6 +106,8 @@ class DataPipeline:
         try:
             tk = yf.Ticker(ticker)
             df = tk.history(start=start, end=end, auto_adjust=False)
+            logger.info(
+                f"Successfully downloaded {len(df):d} points for {ticker}.")
         except ValueError:
             logger.error(f"Invalid ticker symbol {ticker} passed to function")
             return None

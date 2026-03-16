@@ -82,6 +82,12 @@ class DataPipeline:
                 PRIMARY KEY (ticker, date)
             )
         """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_price_data_date ON price_data (date)       
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_price_data_asset_class ON price_data (asset_class)       
+        """)
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS returns_data (
@@ -94,6 +100,12 @@ class DataPipeline:
                 asset_class TEXT,
                 PRIMARY KEY (ticker, date)
             )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_returns_data_date ON returns_data (date)       
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_returns_data_asset_class ON returns_data (asset_class)       
         """)
 
         self.connection.commit()

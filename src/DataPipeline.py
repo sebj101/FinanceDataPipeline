@@ -11,6 +11,7 @@ import datetime
 import logging
 import numpy as np
 from typing import Optional
+from types import TracebackType
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class DataPipeline:
         self._setup_database()
 
         self.assets = {
-            'equities': ['AAPL', 'MSFT', 'GOOGL'],
+            'equities': ['AAPL', 'MSFT', 'GOOGL', 'XYZ', 'FAKENAME'],
             'equity ETFs': ['SPY', 'QQQ', 'IWM', 'VTI'],
             'bonds': ['TLT', 'IEF', 'TIP', 'SHY', 'HYG', 'LQD',
                       'IGLT.L', 'SDEU.L', 'JGBZX'],
@@ -35,6 +36,29 @@ class DataPipeline:
             'currencies': ['UUP', 'FXE', 'FXY', 'FXA'],
             'volatility': ['^VIX']
         }
+
+    def __enter__(self):
+        """
+        Enter method for use with 'with' statements
+        """
+        return self
+
+    def __exit__(self, exc_type: Optional[type[BaseException]],
+                 exc: Optional[BaseException], tb: Optional[TracebackType]):
+        """
+        Statement for closing DB connection when we exit a with loop
+
+        Parameters
+        ----------
+        exc_type : Optional[type[BaseException]]
+            Exception type
+        exc : Optional[BaseException]
+            Exception value
+        tb : Optional[TracebackType]
+            Traceback
+        """
+        self.close_connection()
+        return False
 
     def _setup_database(self):
         """
@@ -117,13 +141,13 @@ class DataPipeline:
             logger.error("Error in getting ticker history from yfinance")
             return None
 
-        if df.empty == True:
+        if df.empty:
             return None
         else:
             return df
 
-    def store_price_data(self, ticker: str, dataframe: pd.DataFrame,
-                         asset_class: str):
+    def _store_price_data(self, ticker: str, dataframe: pd.DataFrame,
+                          asset_class: str):
         """
         Stores the downloaded price data in the price_data SQL table
 
@@ -161,8 +185,8 @@ class DataPipeline:
         """, formatted_data)
         self.connection.commit()
 
-    def calculate_and_store_returns(self, ticker: str, dataframe: pd.DataFrame,
-                                    asset_class: str):
+    def _calculate_and_store_returns(self, ticker: str, dataframe: pd.DataFrame,
+                                     asset_class: str):
         """
         Using the DataFrame for a given ticker, computes the 1d/5d/21d returns 
         and with the volatility and updates returns_table accordingly.
@@ -185,7 +209,7 @@ class DataPipeline:
         df['return_1d'] = dataframe['Adj Close'].pct_change(periods=1)
         df['return_5d'] = dataframe['Adj Close'].pct_change(periods=5)
         df['return_21d'] = dataframe['Adj Close'].pct_change(periods=21)
-        df['vol_21d'] = dataframe['Adj Close'].rolling(
+        df['vol_21d'] = dataframe['Adj Close'].pct_change(periods=1).rolling(
             window=21).std() * np.sqrt(252)
 
         ordered_df = df[['ticker',
@@ -220,7 +244,7 @@ class DataPipeline:
             for ticker in self.assets[asset_class]:
                 df = self.download_data(ticker, start, end)
                 if df is not None:
-                    self.store_price_data(ticker, df, asset_class)
+                    self._store_price_data(ticker, df, asset_class)
                     if asset_class != 'volatility':
-                        self.calculate_and_store_returns(
+                        self._calculate_and_store_returns(
                             ticker, df, asset_class)

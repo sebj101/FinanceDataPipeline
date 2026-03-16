@@ -9,6 +9,7 @@ import yfinance as yf
 import pandas as pd
 import datetime
 import logging
+import numpy as np
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ class DataPipeline:
                 return_1d REAL,
                 return_5d REAL,
                 return_21d REAL,
+                vol_21d REAL,
                 asset_class TEXT,
                 PRIMARY KEY (ticker, date)
             )
@@ -163,7 +165,7 @@ class DataPipeline:
                                     asset_class: str):
         """
         Using the DataFrame for a given ticker, computes the 1d/5d/21d returns 
-        and updates returns_table accordingly
+        and with the volatility and updates returns_table accordingly.
 
         Parameters
         ----------
@@ -183,20 +185,23 @@ class DataPipeline:
         df['return_1d'] = dataframe['Adj Close'].pct_change(periods=1)
         df['return_5d'] = dataframe['Adj Close'].pct_change(periods=5)
         df['return_21d'] = dataframe['Adj Close'].pct_change(periods=21)
+        df['vol_21d'] = dataframe['Adj Close'].rolling(
+            window=21).std() * np.sqrt(252)
 
         ordered_df = df[['ticker',
                          'date',
                          'return_1d',
                          'return_5d',
                          'return_21d',
+                         'vol_21d',
                          'asset_class']]
         formatted_data = ordered_df.to_records(index=False)
 
         cursor = self.connection.cursor()
 
         cursor.executemany("""
-            INSERT OR REPLACE INTO returns_data (ticker, date, return_1d, return_5d, return_21d, asset_class)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO returns_data (ticker, date, return_1d, return_5d, return_21d, vol_21d, asset_class)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, formatted_data)
         self.connection.commit()
 
@@ -216,4 +221,6 @@ class DataPipeline:
                 df = self.download_data(ticker, start, end)
                 if df is not None:
                     self.store_price_data(ticker, df, asset_class)
-                    self.calculate_and_store_returns(ticker, df, asset_class)
+                    if asset_class != 'volatility':
+                        self.calculate_and_store_returns(
+                            ticker, df, asset_class)

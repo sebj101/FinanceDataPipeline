@@ -160,6 +160,16 @@ class DataPipeline:
         asset_class : str
             Asset class of the data
         """
+        if dataframe.empty:
+            raise ValueError("Passed empty DataFrame to _store_price_data")
+
+        # Check if the dataframe is missing any required columns
+        necessary_columns = {'Open', 'High',
+                             'Low', 'Close', 'Volume', 'Adj Close'}
+        if not necessary_columns.issubset(dataframe.columns):
+            raise ValueError(
+                f"Provided DataFrame is missing some required columns: {necessary_columns.difference(dataframe.columns)}")
+
         # Add rows where needed
         df = dataframe.copy()
         df['asset_class'] = asset_class
@@ -200,6 +210,16 @@ class DataPipeline:
         asset_class : str
             Asset class of the data
         """
+        if dataframe.empty:
+            raise ValueError(
+                "Passed empty DataFrame to _calculate_and_store_returns")
+
+        # Check if the dataframe is missing any required columns
+        necessary_columns = {'Adj Close'}
+        if not necessary_columns.issubset(dataframe.columns):
+            raise ValueError(
+                f"Provided DataFrame is missing some required columns: {necessary_columns.difference(dataframe.columns)}")
+
         df = dataframe.copy()
         df['asset_class'] = asset_class
         df['ticker'] = ticker

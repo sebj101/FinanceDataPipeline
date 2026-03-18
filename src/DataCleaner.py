@@ -10,7 +10,6 @@ import pandas as pd
 import logging
 import numpy as np
 import pandas_market_calendars as mcal
-from yfinance import Ticker
 import datetime
 
 logger = logging.getLogger(__name__)
@@ -21,7 +20,7 @@ class DataCleaner:
     Data cleaning class. Handles data cleaning and reporting.
     """
 
-    def __init__(self, input_df: pd.DataFrame, ticker: str,
+    def __init__(self, input_df: pd.DataFrame,
                  start: datetime.date, end: datetime.date, trading_cal: mcal.MarketCalendar,
                  anomaly_threshold: float = 0.5):
         """
@@ -31,8 +30,6 @@ class DataCleaner:
         ----------
         input_df : pd.DataFrame
             Input DataFrame to be cleaned
-        ticker : str
-            String representing the ticker
         start : datetime.date
             Start date from which we are interested in cleaning
         end : datetime.date
@@ -72,7 +69,6 @@ class DataCleaner:
 
         self._start = start
         self._end = end
-        self._ticker = ticker
         self._cleaning_run = False
 
     def _flag_invalid_entries(self):

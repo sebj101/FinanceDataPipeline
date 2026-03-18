@@ -103,7 +103,7 @@ class DataCleaner:
         n_ohlc_inconsistencies = len(self._df.loc[self._df['Inconsistent']])
         self.cleaning_report['ohlc_inconsistencies'] = n_ohlc_inconsistencies
         if n_ohlc_inconsistencies > 0:
-            logger.warning("rows had invalid prices")
+            logger.warning(f"{n_ohlc_inconsistencies} rows had invalid prices")
 
     def _count_missing_trading_days(self) -> int:
         """

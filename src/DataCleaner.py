@@ -88,6 +88,27 @@ class DataCleaner:
         self.cleaning_report['zero_volume_days'] = len(
             self._df.loc[self._df['Volume'] == 0])
 
+    def _flag_inconsistent_ohlc(self):
+        """
+        Looks for cases where the relationship between entries in a row are 
+        anomalous and flag
+        """
+        self._df = self._df.assign(Inconsistent=False)
+        self._df.loc[self._df['Low'] > self._df['High'], 'Inconsistent'] = True
+        self._df.loc[self._df['Open'] >
+                     self._df['High'], 'Inconsistent'] = True
+        self._df.loc[self._df['Close'] >
+                     self._df['High'], 'Inconsistent'] = True
+
+        self._df.loc[self._df['Open'] < self._df['Low'], 'Inconsistent'] = True
+        self._df.loc[self._df['Close'] <
+                     self._df['Low'], 'Inconsistent'] = True
+
+        n_ohlc_inconsistencies = len(self._df.loc[self._df['Inconsistent']])
+        self.cleaning_report['ohlc_inconsistencies'] = n_ohlc_inconsistencies
+        if n_ohlc_inconsistencies > 0:
+            logger.warning("rows had invalid prices")
+
     def _count_missing_trading_days(self) -> int:
         """
         Count the number of valid trading days which should be in the data
@@ -100,21 +121,36 @@ class DataCleaner:
             f"Found {len(self._missing_dates):d} missing trading days in the DataFrame")
         return len(self._missing_dates)
 
+    def _flag_anomalous_moves(self):
+        """
+        Looks for moves in the closing price over a pre-defined threshold and 
+        flags them in the DataFrame via a new column
+        """
+        self._df['Anomalous'] = abs(
+            self._df['Adj Close'].pct_change(periods=1, fill_method=None)) > self._anomaly_thresh
+        # We will clean out NaNs or later on so for now, if we are comparing a
+        # value with a NaN then state it's not an anomaly
+        self._df.loc[self._df['Adj Close'].pct_change(
+            periods=1, fill_method=None).isna(), 'Anomalous'] = False
+
+        n_anomalies = len(self._df.loc[self._df['Anomalous']])
+        self.cleaning_report['anomalous_days'] = n_anomalies
+        logger.info(f"Found {n_anomalies} anomalous days")
+
     def _remove_invalid_entries(self):
         """
         Removes any missing days with invalid entries from an input DataFrame
         """
         initial_rows = len(self._df)
-        self._df = self._df.dropna()
-        self.cleaning_report['rows_removed'] = initial_rows - \
-            len(self._df.dropna())
-
-        total_rows = len(self._df)
         for col, count in self._df.isna().sum().items():
             self.cleaning_report[col] = count
             if count > 0:
                 logger.warning(
-                    f"Column {col} has {count:d} NaNs out of {total_rows:d} total")
+                    f"Column {col} has {count:d} NaNs out of {initial_rows:d} total")
+
+        self.cleaning_report['rows_removed'] = initial_rows - \
+            len(self._df.dropna())
+        self._df = self._df.dropna()
 
     def clean_data(self):
         """
@@ -123,6 +159,8 @@ class DataCleaner:
         self.cleaning_report['missing_days'] = self._count_missing_trading_days(
         )
         self._flag_invalid_entries()
+        self._flag_anomalous_moves()
+        self._flag_inconsistent_ohlc()
         self._remove_invalid_entries()
         self._cleaning_run = True
 

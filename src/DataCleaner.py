@@ -126,12 +126,12 @@ class DataCleaner:
         Looks for moves in the closing price over a pre-defined threshold and 
         flags them in the DataFrame via a new column
         """
-        self._df['Anomalous'] = abs(
-            self._df['Adj Close'].pct_change(periods=1, fill_method=None)) > self._anomaly_thresh
+        pct_change_series = self._df['Adj Close'].pct_change(
+            periods=1, fill_method=None)
+        self._df['Anomalous'] = abs(pct_change_series) > self._anomaly_thresh
         # We will clean out NaNs or later on so for now, if we are comparing a
         # value with a NaN then state it's not an anomaly
-        self._df.loc[self._df['Adj Close'].pct_change(
-            periods=1, fill_method=None).isna(), 'Anomalous'] = False
+        self._df.loc[pct_change_series.isna(), 'Anomalous'] = False
 
         n_anomalies = len(self._df.loc[self._df['Anomalous']])
         self.cleaning_report['anomalous_days'] = n_anomalies

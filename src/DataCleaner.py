@@ -105,7 +105,7 @@ class DataCleaner:
         if n_ohlc_inconsistencies > 0:
             logger.warning(f"{n_ohlc_inconsistencies} rows had invalid prices")
 
-    def _count_missing_trading_days(self) -> int:
+    def _count_missing_trading_days(self):
         """
         Count the number of valid trading days which should be in the data
         """
@@ -115,7 +115,7 @@ class DataCleaner:
         self._missing_dates = valid_trading_dates.difference(dataset_dates)
         logger.info(
             f"Found {len(self._missing_dates):d} missing trading days in the DataFrame")
-        return len(self._missing_dates)
+        self.cleaning_report['missing_days'] = len(self._missing_dates)
 
     def _flag_anomalous_moves(self):
         """
@@ -152,8 +152,7 @@ class DataCleaner:
         """
         Processes and cleans the input DataFrame of financial data from yfinance
         """
-        self.cleaning_report['missing_days'] = self._count_missing_trading_days(
-        )
+        self._count_missing_trading_days()
         self._flag_invalid_entries()
         self._flag_anomalous_moves()
         self._flag_inconsistent_ohlc()
